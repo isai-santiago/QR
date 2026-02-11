@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Pase de Lista</title>
+    <script src="qrcode.min.js"></script>
+    <style>
+        body { background: #000; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        
+        .card { 
+            background: white; 
+            color: black; 
+            padding: 20px; 
+            border-radius: 20px; 
+            text-align: center; 
+            width: 300px; 
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+        
+        #qrcode { 
+            margin: 20px auto; 
+            display: flex; 
+            justify-content: center; 
+        }
+        
+        /* Asegura que la imagen del QR no se salga */
+        #qrcode img {
+            max-width: 100%;
+        }
+
+        .info { margin-top: 10px; }
+        
+        /* Botones */
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        button { 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        .btn-download {
+            background: #22c55e; /* Verde */
+            color: white;
+        }
+
+        .btn-logout {
+            background: #ef4444; /* Rojo */
+            color: white;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2 style="margin:0;">Pase de Lista</h2>
+        
+        <div id="qrcode"></div>
+        
+        <div class="info">
+            <h3 id="nombreUser">Cargando...</h3>
+            <p id="matriculaUser">...</p>
+            <small style="color:gray">Muestra este código al profesor</small>
+        </div>
+
+        <div class="btn-container">
+            <button class="btn-download" onclick="descargarImagenQR()">⬇️ Guardar en Galería</button>
+            
+            <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+    </div>
+    
+
+    <script>
+        const sesion = localStorage.getItem('sesion_activa');
+        if (!sesion) {
+            window.location.href = 'index.html'; 
+        }
+
+        const usuario = JSON.parse(sesion);
+
+        document.getElementById('nombreUser').innerText = usuario.nombre;
+        document.getElementById('matriculaUser').innerText = usuario.matricula;
+
+        const datosParaQR = JSON.stringify({
+            uid: usuario.uid,
+            nombre: usuario.nombre,
+            matricula: usuario.matricula,
+            email: usuario.email
+        });
+
+        const qrContainer = document.getElementById("qrcode");
+        new QRCode(qrContainer, {
+            text: datosParaQR,
+            width: 200,
+            height: 200
+        });
+
+        function descargarImagenQR() {
+            const imgQR = qrContainer.querySelector("img");
+
+            if (imgQR && imgQR.src) {
+                const enlace = document.createElement("a");
+                enlace.href = imgQR.src;
+                enlace.download = `Credencial_${usuario.uid}.png`; 
+                
+                document.body.appendChild(enlace);
+                enlace.click();
+                document.body.removeChild(enlace);
+            } else {
+                alert("El código aún se está generando, intenta en 1 segundo.");
+            }
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('sesion_activa');
+            window.location.href = 'index.html';
+        }
+    </script>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Profesor - Indaptados</title>
+    <style>
+        body { background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .controls { background: #222; padding: 15px; border-radius: 10px; width: 100%; max-width: 500px; margin-bottom: 20px; }
+        select { width: 100%; padding: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; font-size: 16px; }
+        #reader { width: 100%; max-width: 500px; border: 2px solid #444; border-radius: 10px; }
+        
+        #console-output {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 15px;
+            width: 100%;
+            max-width: 500px;
+            margin-top: 20px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            white-space: pre-wrap;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: scroll;
+        }
+        
+        button.btn-clear {
+            background: #ef4444; color: white; border: none; padding: 8px; border-radius: 5px; margin-top: 10px; cursor: pointer; width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <label>Materia Actual:</label>
+        <select id="select-materia">
+            <option value="prog_avanzada">Prog. Avanzada (Gpo A)</option>
+            <option value="ux_design">Diseño UX (Gpo B)</option>
+        </select>
+    </div>
+
+    <div id="reader"></div>
+
+    <h3>Registro de Hoy (Persistente):</h3>
+    <div id="console-output">Cargando registros...</div>
+    <button class="btn-clear" onclick="borrarRegistros()">🗑️ Borrar Lista y Empezar de Nuevo</button>
+
+  <script src="html5-qrcode.min.js"></script>
+    <script>
+        const outputDiv = document.getElementById('console-output');
+        const materiaSelect = document.getElementById('select-materia');
+        
+        let registrosHoy = JSON.parse(localStorage.getItem('asistencia_db')) || [];
+        actualizarPantalla();
+
+        function onScanSuccess(decodedText, decodedResult) {
+            try {
+                const alumno = JSON.parse(decodedText);
+
+                if (!alumno.uid) { alert("QR No válido"); return; }
+
+                const yaRegistrado = registrosHoy.find(r => r.uid === alumno.uid);
+                
+                if(yaRegistrado) {
+                    alert(`⚠️ ALTO: ${alumno.nombre} ya fue registrado a las ${yaRegistrado.hora}`);
+                    return; 
+                }
+
+                const fechaActual = new Date();
+                const nuevoRegistro = {
+                    uid: alumno.uid,
+                    nombre: alumno.nombre,
+                    matricula: alumno.matricula,
+                    materia: materiaSelect.options[materiaSelect.selectedIndex].text,
+                    timestamp: Date.now(),
+                    hora: fechaActual.toLocaleTimeString(),
+                    estado: "A tiempo"
+                };
+
+                registrosHoy.push(nuevoRegistro);
+                localStorage.setItem('asistencia_db', JSON.stringify(registrosHoy));
+                
+                actualizarPantalla();
+                alert(`✅ Registrado: ${alumno.nombre}`);
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function actualizarPantalla() {
+            outputDiv.innerText = JSON.stringify(registrosHoy, null, 2);
+        }
+
+        function borrarRegistros() {
+            if(confirm("¿Seguro que quieres borrar toda la asistencia de hoy?")) {
+                registrosHoy = [];
+                localStorage.removeItem('asistencia_db');
+                actualizarPantalla();
+            }
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+    <script>
+    // Registro del Service Worker para soporte Offline
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Modo Offline listo:', reg.scope))
+                .catch(err => console.log('Fallo SW:', err));
+        });
+    }
+</script>
+</body>
+</html>
