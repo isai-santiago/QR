@@ -3,118 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Profesor - Indaptados</title>
+    <title>Profesor - Escáner</title>
+    <script src="html5-qrcode.min.js"></script>
     <style>
-        body { background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .controls { background: #222; padding: 15px; border-radius: 10px; width: 100%; max-width: 500px; margin-bottom: 20px; }
-        select { width: 100%; padding: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; font-size: 16px; }
-        #reader { width: 100%; max-width: 500px; border: 2px solid #444; border-radius: 10px; }
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; }
+        h1 { text-align: center; }
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center; display: none; font-weight: bold; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
         
-        #console-output {
-            background: #000;
-            color: #0f0;
-            font-family: monospace;
-            padding: 15px;
-            width: 100%;
-            max-width: 500px;
-            margin-top: 20px;
-            border-radius: 5px;
-            border: 1px solid #333;
-            white-space: pre-wrap;
-            font-size: 12px;
-            height: 200px;
-            overflow-y: scroll;
-        }
-        
-        button.btn-clear {
-            background: #ef4444; color: white; border: none; padding: 8px; border-radius: 5px; margin-top: 10px; cursor: pointer; width: 100%;
-        }
+        /* Dashboard Tabla */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #007bff; color: white; }
+        .btn-clear { background: #ff9800; color: white; border: none; padding: 5px 10px; margin-top: 10px; cursor: pointer; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <label>Materia Actual:</label>
-        <select id="select-materia">
-            <option value="prog_avanzada">Prog. Avanzada (Gpo A)</option>
-            <option value="ux_design">Diseño UX (Gpo B)</option>
-        </select>
-    </div>
-
+    <h1>Escáner de Asistencia</h1>
+    
     <div id="reader"></div>
 
-    <h3>Registro de Hoy (Persistente):</h3>
-    <div id="console-output">Cargando registros...</div>
-    <button class="btn-clear" onclick="borrarRegistros()">🗑️ Borrar Lista y Empezar de Nuevo</button>
+    <div id="statusMsg" class="status"></div>
 
-  <script src="html5-qrcode.min.js"></script>
+    <h3>Registros de Hoy:</h3>
+    <table id="tablaAsistencia">
+        <thead>
+            <tr>
+                <th>Hora</th>
+                <th>Matrícula</th>
+                <th>Nombre</th>
+            </tr>
+        </thead>
+        <tbody id="listaCuerpo">
+            </tbody>
+    </table>
+    <button class="btn-clear" onclick="borrarHistorial()">Limpiar Lista</button>
+    <br><br>
+    <button onclick="window.location.href='index.html'">Cerrar Sesión</button>
+
     <script>
-        const outputDiv = document.getElementById('console-output');
-        const materiaSelect = document.getElementById('select-materia');
-        
-        let registrosHoy = JSON.parse(localStorage.getItem('asistencia_db')) || [];
-        actualizarPantalla();
+        // Verificar sesión de profesor
+        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+        if (!sesion || sesion.rol !== 'profesor') window.location.href = 'index.html';
 
+        // Cargar asistencias previas (Persistencia)
+        let asistencias = JSON.parse(localStorage.getItem('asistencias_db')) || [];
+        actualizarTabla();
+
+        // Configuración del Escáner
+        const html5QrCode = new Html5Qrcode("reader");
+        
         function onScanSuccess(decodedText, decodedResult) {
             try {
-                const alumno = JSON.parse(decodedText);
-
-                if (!alumno.uid) { alert("QR No válido"); return; }
-
-                const yaRegistrado = registrosHoy.find(r => r.uid === alumno.uid);
-                
-                if(yaRegistrado) {
-                    alert(`⚠️ ALTO: ${alumno.nombre} ya fue registrado a las ${yaRegistrado.hora}`);
-                    return; 
-                }
-
-                const fechaActual = new Date();
-                const nuevoRegistro = {
-                    uid: alumno.uid,
-                    nombre: alumno.nombre,
-                    matricula: alumno.matricula,
-                    materia: materiaSelect.options[materiaSelect.selectedIndex].text,
-                    timestamp: Date.now(),
-                    hora: fechaActual.toLocaleTimeString(),
-                    estado: "A tiempo"
-                };
-
-                registrosHoy.push(nuevoRegistro);
-                localStorage.setItem('asistencia_db', JSON.stringify(registrosHoy));
-                
-                actualizarPantalla();
-                alert(`✅ Registrado: ${alumno.nombre}`);
-
+                const datos = JSON.parse(decodedText);
+                procesarAsistencia(datos);
             } catch (e) {
-                console.error(e);
+                mostrarMensaje("El QR no es válido o no pertenece al sistema", "error");
             }
         }
 
-        function actualizarPantalla() {
-            outputDiv.innerText = JSON.stringify(registrosHoy, null, 2);
+        function procesarAsistencia(alumno) {
+            // [US-07] VALIDACIÓN DE EXPIRACIÓN (15 Minutos = 900,000 ms)
+            const ahora = Date.now();
+            if (ahora - alumno.timestamp > 900000) {
+                mostrarMensaje(`❌ El QR de ${alumno.nombre} ha expirado. Genere uno nuevo.`, "error");
+                return;
+            }
+
+            // [US-05] VALIDACIÓN ANTI-FRAUDE (Duplicados)
+            const yaRegistrado = asistencias.find(a => a.uid === alumno.uid);
+            if (yaRegistrado) {
+                mostrarMensaje(`⚠️ ${alumno.nombre} ya fue registrado hoy a las ${yaRegistrado.hora}`, "error");
+                return;
+            }
+
+            // Si pasa las validaciones, guardamos
+            const nuevoRegistro = {
+                uid: alumno.uid,
+                nombre: alumno.nombre,
+                hora: new Date().toLocaleTimeString()
+            };
+
+            asistencias.push(nuevoRegistro);
+            localStorage.setItem('asistencias_db', JSON.stringify(asistencias)); // Guardar en BD local
+            actualizarTabla();
+            mostrarMensaje(`✅ Asistencia registrada: ${alumno.nombre}`, "success");
+            
+            // Pausa de 3 seg para no escanear múltiple veces por error
+            html5QrCode.pause();
+            setTimeout(() => { html5QrCode.resume(); }, 3000);
         }
 
-        function borrarRegistros() {
-            if(confirm("¿Seguro que quieres borrar toda la asistencia de hoy?")) {
-                registrosHoy = [];
-                localStorage.removeItem('asistencia_db');
-                actualizarPantalla();
+        function mostrarMensaje(texto, tipo) {
+            const msg = document.getElementById('statusMsg');
+            msg.innerText = texto;
+            msg.className = `status ${tipo}`;
+            msg.style.display = 'block';
+            
+            // Sonido de confirmación (opcional)
+            if(tipo === 'success') {
+                let audio = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg'); 
+                audio.play().catch(e => console.log("Audio play failed"));
             }
         }
 
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: 250 });
-        html5QrcodeScanner.render(onScanSuccess);
-    </script>
-    <script>
-    // Registro del Service Worker para soporte Offline
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Modo Offline listo:', reg.scope))
-                .catch(err => console.log('Fallo SW:', err));
+        function actualizarTabla() {
+            const tbody = document.getElementById('listaCuerpo');
+            tbody.innerHTML = '';
+            asistencias.forEach(reg => {
+                const row = `<tr><td>${reg.hora}</td><td>${reg.uid}</td><td>${reg.nombre}</td></tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function borrarHistorial() {
+            if(confirm("¿Borrar toda la lista de hoy?")) {
+                asistencias = [];
+                localStorage.removeItem('asistencias_db');
+                actualizarTabla();
+            }
+        }
+
+        // Iniciar cámara
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: 250 },
+            onScanSuccess
+        ).catch(err => {
+            console.error("Error al iniciar cámara", err);
+            mostrarMensaje("Error: No se pudo acceder a la cámara", "error");
         });
-    }
-</script>
+    </script>
 </body>
 </html>
