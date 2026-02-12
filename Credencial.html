@@ -3,139 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Pase de Lista</title>
+    <title>Mi Credencial</title>
     <script src="qrcode.min.js"></script>
     <style>
-        body { background: #000; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        
-        .card { 
-            background: white; 
-            color: black; 
-            padding: 20px; 
-            border-radius: 20px; 
-            text-align: center; 
-            width: 300px; 
-            box-shadow: 0 0 20px rgba(255,255,255,0.1);
-        }
-        
-        #qrcode { 
-            margin: 20px auto; 
-            display: flex; 
-            justify-content: center; 
-        }
-        
-        /* Asegura que la imagen del QR no se salga */
-        #qrcode img {
-            max-width: 100%;
-        }
-
-        .info { margin-top: 10px; }
-        
-        /* Botones */
-        .btn-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        button { 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold;
-            width: 100%;
-            font-size: 16px;
-        }
-
-        .btn-download {
-            background: #22c55e; /* Verde */
-            color: white;
-        }
-
-        .btn-logout {
-            background: #ef4444; /* Rojo */
-            color: white;
-        }
-
+        body { background: #2c3e50; font-family: sans-serif; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: white; color: #333; padding: 20px; border-radius: 15px; text-align: center; width: 300px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        h2 { margin: 0; color: #2c3e50; }
+        #qrcode { margin: 20px auto; display: flex; justify-content: center; }
+        .data { font-size: 1.2em; font-weight: bold; margin: 5px 0; }
+        .expiration { color: #e74c3c; font-size: 0.9em; margin-bottom: 15px; }
+        .btn { display: block; width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-down { background: #27ae60; color: white; }
+        .btn-out { background: #95a5a6; color: white; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2 style="margin:0;">Pase de Lista</h2>
-        
+        <h2>Pase de Lista</h2>
         <div id="qrcode"></div>
         
-        <div class="info">
-            <h3 id="nombreUser">Cargando...</h3>
-            <p id="matriculaUser">...</p>
-            <small style="color:gray">Muestra este código al profesor</small>
-        </div>
+        <div class="data" id="nombreAlumno">Cargando...</div>
+        <div id="uidAlumno" style="color:gray">...</div>
+        
+        <div class="expiration">⏳ Válido por 15 minutos</div>
 
-        <div class="btn-container">
-            <button class="btn-download" onclick="descargarImagenQR()">⬇️ Guardar en Galería</button>
-            
-            <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
-        </div>
+        <button class="btn btn-down" onclick="descargarQR()">⬇️ Guardar en Galería</button>
+        <button class="btn btn-out" onclick="logout()">Cerrar Sesión</button>
     </div>
-    
 
     <script>
-        const sesion = localStorage.getItem('sesion_activa');
-        if (!sesion) {
-            window.location.href = 'index.html'; 
-        }
+        // 1. Validar Sesión (Seguridad)
+        const usuario = JSON.parse(localStorage.getItem('sesion'));
+        if (!usuario || usuario.rol !== 'alumno') window.location.href = 'index.html';
 
-        const usuario = JSON.parse(sesion);
+        document.getElementById('nombreAlumno').innerText = usuario.nombre;
+        document.getElementById('uidAlumno').innerText = usuario.uid;
 
-        document.getElementById('nombreUser').innerText = usuario.nombre;
-        document.getElementById('matriculaUser').innerText = usuario.matricula;
-
-        const datosParaQR = JSON.stringify({
+        // 2. Generar QR con Timestamp [US-07]
+        const qrData = {
             uid: usuario.uid,
             nombre: usuario.nombre,
-            matricula: usuario.matricula,
-            email: usuario.email
-        });
+            ts: Date.now() // Hora exacta para validación
+        };
 
         const qrContainer = document.getElementById("qrcode");
         new QRCode(qrContainer, {
-            text: datosParaQR,
+            text: JSON.stringify(qrData),
             width: 200,
-            height: 200
+            height: 200,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
         });
 
-        function descargarImagenQR() {
-            const imgQR = qrContainer.querySelector("img");
-
-            if (imgQR && imgQR.src) {
-                const enlace = document.createElement("a");
-                enlace.href = imgQR.src;
-                enlace.download = `Credencial_${usuario.uid}.png`; 
-                
-                document.body.appendChild(enlace);
-                enlace.click();
-                document.body.removeChild(enlace);
-            } else {
-                alert("El código aún se está generando, intenta en 1 segundo.");
+        // 3. Función Descarga Offline [US-06]
+        function descargarQR() {
+            const img = qrContainer.querySelector("img");
+            if (img && img.src) {
+                const link = document.createElement("a");
+                link.href = img.src;
+                link.download = `QR_${usuario.uid}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
         }
 
-        function cerrarSesion() {
-            localStorage.removeItem('sesion_activa');
+        function logout() {
+            localStorage.removeItem('sesion');
             window.location.href = 'index.html';
         }
-    </script>
-    
-    <script>
+
+        // 4. Registrar Service Worker (Modo Offline)
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js');
-            });
+            navigator.serviceWorker.register('./sw.js');
         }
     </script>
 </body>
+</html>
+</body>
+
 </html>
