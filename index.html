@@ -3,51 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Indaptados</title>
+    <title>Acceso Indaptados</title>
+    <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
-        .login-card { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 300px; text-align: center; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #0056b3; }
-        .error { color: red; font-size: 14px; display: none; margin-top: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        h2 { color: #333; margin-bottom: 1.5rem; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        .error { color: red; font-size: 0.9rem; margin-top: 10px; display: none; }
+        .footer { margin-top: 20px; font-size: 0.8rem; color: #888; }
     </style>
 </head>
 <body>
-    <div class="login-card">
+    <div class="login-container">
+        <img src="https://cdn-icons-png.flaticon.com/512/3589/3589030.png" width="80" alt="Logo">
         <h2>Bienvenido</h2>
-        <input type="text" id="usuario" placeholder="Usuario (Ej: Zeryux o Profe)">
-        <input type="password" id="password" placeholder="Contraseña">
-        <button onclick="login()">Ingresar</button>
-        <p id="errorMsg" class="error">Credenciales incorrectas</p>
+        <form id="loginForm" onsubmit="event.preventDefault(); login();">
+            <input type="text" id="user" placeholder="Usuario (ej. Isai, Josue, Zeryux)" required>
+            <input type="password" id="pass" placeholder="Contraseña" required>
+            <button type="submit">Iniciar Sesión</button>
+            <div id="msg" class="error">Credenciales incorrectas</div>
+        </form>
+        <div class="footer">Sistema de Asistencia v1.0</div>
     </div>
 
     <script>
+        // [US-01] Base de Datos de Usuarios (Simulación Backend)
+        const DB_USUARIOS = [
+            { user: 'Zeryux', pass: '123', rol: 'alumno', uid: 'IND-001', nombre: 'Zeryux Dev' },
+            { user: 'Isai', pass: '123', rol: 'alumno', uid: 'IND-002', nombre: 'Isai Santiago' },
+            { user: 'Josue', pass: '123', rol: 'alumno', uid: 'IND-003', nombre: 'Josue Dev' },
+            { user: 'Adolfo', pass: '123', rol: 'alumno', uid: 'IND-004', nombre: 'Adolfo UX' },
+            { user: 'Profe', pass: 'admin', rol: 'profesor', uid: 'DOC-01', nombre: 'Profesor Titular' }
+        ];
+
         function login() {
-            const user = document.getElementById('usuario').value;
-            const pass = document.getElementById('password').value;
-            const errorMsg = document.getElementById('errorMsg');
+            const u = document.getElementById('user').value;
+            const p = document.getElementById('pass').value;
+            
+            const usuarioEncontrado = DB_USUARIOS.find(d => d.user === u && d.pass === p);
 
-            // BASE DE DATOS MOCK (Simulada)
-            const usuarios = {
-                'Zeryux': { pass: '123', rol: 'alumno', nombre: 'Zeryux Dev', matricula: 'IND-2026-01' },
-                'Ana': { pass: '123', rol: 'alumno', nombre: 'Ana Design', matricula: 'IND-2026-02' },
-                'Profe': { pass: 'admin', rol: 'profesor', nombre: 'Profesor X', matricula: 'DOC-001' }
-            };
-
-            if (usuarios[user] && usuarios[user].pass === pass) {
-                // Guardamos sesión
-                localStorage.setItem('sesion_activa', JSON.stringify(usuarios[user]));
+            if (usuarioEncontrado) {
+                // Guardar sesión persistente [US-01]
+                localStorage.setItem('sesion', JSON.stringify(usuarioEncontrado));
                 
-                // [US-01] Redirección basada en Roles
-                if (usuarios[user].rol === 'profesor') {
-                    window.location.href = 'Escaner.html'; // El profe va a escanear
+                // Redirección por Roles
+                if (usuarioEncontrado.rol === 'profesor') {
+                    window.location.href = 'Escaner.html';
                 } else {
-                    window.location.href = 'Credencial.html'; // El alumno va a su QR
+                    window.location.href = 'Credencial.html';
                 }
             } else {
-                errorMsg.style.display = 'block';
+                document.getElementById('msg').style.display = 'block';
             }
+        }
+
+        // Verificar si ya hay sesión al cargar
+        const sesionActiva = JSON.parse(localStorage.getItem('sesion'));
+        if(sesionActiva) {
+            window.location.href = sesionActiva.rol === 'profesor' ? 'Escaner.html' : 'Credencial.html';
         }
     </script>
 </body>
