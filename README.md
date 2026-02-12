@@ -8,3 +8,5 @@ funciona con cuentas preregistradas en la base de datos, registre las siguientes
         ];
 para que se haga el test, los 3 primeros simulan estudiantes
 y el 4to es para el cargar el scanner
+
+configuracion y reportes no estan configurados, ya que queria seguir con los siguientes retos asi que quedaron sin config
