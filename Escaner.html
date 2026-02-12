@@ -3,139 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profesor - Escáner</title>
+    <title>Profesor Dashboard</title>
     <script src="html5-qrcode.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; }
-        h1 { text-align: center; }
-        #reader { width: 100%; border-radius: 10px; overflow: hidden; }
-        .status { padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center; display: none; font-weight: bold; }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
         
-        /* Dashboard Tabla */
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #007bff; color: white; }
-        .btn-clear { background: #ff9800; color: white; border: none; padding: 5px 10px; margin-top: 10px; cursor: pointer; border-radius: 4px; }
+        /* Área del Escáner */
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: black; }
+        
+        /* Alertas [US-03] */
+        .alert { padding: 15px; margin: 10px 0; border-radius: 5px; text-align: center; display: none; font-weight: bold; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Tabla Dashboard [US-08] */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #007bff; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+
+        .btn-danger { background: #dc3545; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 5px; float: right; }
     </style>
 </head>
 <body>
 
-    <h1>Escáner de Asistencia</h1>
-    
-    <div id="reader"></div>
+    <div class="container">
+        <h1>Panel de Asistencia</h1>
+        
+        <div id="reader"></div>
+        <div id="statusMsg" class="alert"></div>
 
-    <div id="statusMsg" class="status"></div>
+        <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
+            <h3>Asistencias Registradas Hoy</h3>
+            <button class="btn-danger" onclick="limpiarLista()">🗑️ Nueva Sesión</button>
+        </div>
 
-    <h3>Registros de Hoy:</h3>
-    <table id="tablaAsistencia">
-        <thead>
-            <tr>
-                <th>Hora</th>
-                <th>Matrícula</th>
-                <th>Nombre</th>
-            </tr>
-        </thead>
-        <tbody id="listaCuerpo">
-            </tbody>
-    </table>
-    <button class="btn-clear" onclick="borrarHistorial()">Limpiar Lista</button>
-    <br><br>
-    <button onclick="window.location.href='index.html'">Cerrar Sesión</button>
+        <table id="tablaAsistencias">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>ID Alumno</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="listaBody">
+                </tbody>
+        </table>
+        
+        <br>
+        <button onclick="window.location.href='index.html'" style="padding:10px;">Cerrar Sesión</button>
+    </div>
 
     <script>
-        // Verificar sesión de profesor
-        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+        // Validar Rol Profesor
+        const sesion = JSON.parse(localStorage.getItem('sesion'));
         if (!sesion || sesion.rol !== 'profesor') window.location.href = 'index.html';
 
-        // Cargar asistencias previas (Persistencia)
-        let asistencias = JSON.parse(localStorage.getItem('asistencias_db')) || [];
-        actualizarTabla();
+        // [US-04] Persistencia: Cargar datos previos
+        let listaAsistencia = JSON.parse(localStorage.getItem('db_asistencia')) || [];
+        renderizarTabla();
 
-        // Configuración del Escáner
-        const html5QrCode = new Html5Qrcode("reader");
+        // Configuración Escáner [US-03]
+        const scanner = new Html5Qrcode("reader");
         
-        function onScanSuccess(decodedText, decodedResult) {
+        function onScanSuccess(decodedText) {
             try {
-                const datos = JSON.parse(decodedText);
-                procesarAsistencia(datos);
+                const data = JSON.parse(decodedText);
+                procesarRegistro(data);
             } catch (e) {
-                mostrarMensaje("El QR no es válido o no pertenece al sistema", "error");
+                mostrarAlerta("QR Inválido o no pertenece al sistema", "error");
             }
         }
 
-        function procesarAsistencia(alumno) {
-            // [US-07] VALIDACIÓN DE EXPIRACIÓN (15 Minutos = 900,000 ms)
+        function procesarRegistro(alumno) {
             const ahora = Date.now();
-            if (ahora - alumno.timestamp > 900000) {
-                mostrarMensaje(`❌ El QR de ${alumno.nombre} ha expirado. Genere uno nuevo.`, "error");
+
+            // 1. [US-07] Validación de Expiración (15 mins = 900,000 ms)
+            if (ahora - alumno.ts > 900000) {
+                mostrarAlerta(`❌ El código de ${alumno.nombre} expiró hace ${(ahora - alumno.ts)/60000 | 0} min.`, "error");
                 return;
             }
 
-            // [US-05] VALIDACIÓN ANTI-FRAUDE (Duplicados)
-            const yaRegistrado = asistencias.find(a => a.uid === alumno.uid);
-            if (yaRegistrado) {
-                mostrarMensaje(`⚠️ ${alumno.nombre} ya fue registrado hoy a las ${yaRegistrado.hora}`, "error");
+            // 2. [US-05] Anti-Fraude (Duplicados)
+            const existe = listaAsistencia.find(r => r.uid === alumno.uid);
+            if (existe) {
+                mostrarAlerta(`⚠️ ${alumno.nombre} ya fue registrado a las ${existe.hora}`, "error");
                 return;
             }
 
-            // Si pasa las validaciones, guardamos
+            // 3. Registro Exitoso
             const nuevoRegistro = {
                 uid: alumno.uid,
                 nombre: alumno.nombre,
-                hora: new Date().toLocaleTimeString()
+                hora: new Date().toLocaleTimeString(),
+                estado: "A Tiempo"
             };
 
-            asistencias.push(nuevoRegistro);
-            localStorage.setItem('asistencias_db', JSON.stringify(asistencias)); // Guardar en BD local
-            actualizarTabla();
-            mostrarMensaje(`✅ Asistencia registrada: ${alumno.nombre}`, "success");
+            listaAsistencia.push(nuevoRegistro);
+            localStorage.setItem('db_asistencia', JSON.stringify(listaAsistencia)); // Guardar
             
-            // Pausa de 3 seg para no escanear múltiple veces por error
-            html5QrCode.pause();
-            setTimeout(() => { html5QrCode.resume(); }, 3000);
+            renderizarTabla();
+            mostrarAlerta(`✅ Asistencia correcta: ${alumno.nombre}`, "success");
+            
+            // Pausa para evitar doble lectura instantánea
+            scanner.pause();
+            setTimeout(() => scanner.resume(), 2500);
         }
 
-        function mostrarMensaje(texto, tipo) {
-            const msg = document.getElementById('statusMsg');
-            msg.innerText = texto;
-            msg.className = `status ${tipo}`;
-            msg.style.display = 'block';
-            
-            // Sonido de confirmación (opcional)
-            if(tipo === 'success') {
-                let audio = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg'); 
-                audio.play().catch(e => console.log("Audio play failed"));
-            }
-        }
-
-        function actualizarTabla() {
-            const tbody = document.getElementById('listaCuerpo');
-            tbody.innerHTML = '';
-            asistencias.forEach(reg => {
-                const row = `<tr><td>${reg.hora}</td><td>${reg.uid}</td><td>${reg.nombre}</td></tr>`;
-                tbody.innerHTML += row;
+        function renderizarTabla() {
+            const tbody = document.getElementById('listaBody');
+            tbody.innerHTML = "";
+            listaAsistencia.forEach(item => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.hora}</td>
+                        <td>${item.uid}</td>
+                        <td>${item.nombre}</td>
+                        <td style="color:green; font-weight:bold;">${item.estado}</td>
+                    </tr>
+                `;
             });
         }
 
-        function borrarHistorial() {
-            if(confirm("¿Borrar toda la lista de hoy?")) {
-                asistencias = [];
-                localStorage.removeItem('asistencias_db');
-                actualizarTabla();
+        function mostrarAlerta(msg, tipo) {
+            const div = document.getElementById('statusMsg');
+            div.innerText = msg;
+            div.className = `alert ${tipo}`;
+            div.style.display = 'block';
+        }
+
+        function limpiarLista() {
+            if(confirm("¿Estás seguro de iniciar una nueva clase? Se borrará la lista actual.")) {
+                listaAsistencia = [];
+                localStorage.removeItem('db_asistencia');
+                renderizarTabla();
+                mostrarAlerta("Lista reiniciada", "success");
             }
         }
 
-        // Iniciar cámara
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: 250 },
-            onScanSuccess
-        ).catch(err => {
-            console.error("Error al iniciar cámara", err);
-            mostrarMensaje("Error: No se pudo acceder a la cámara", "error");
-        });
+        // Iniciar Cámara
+        scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
     </script>
 </body>
 </html>
