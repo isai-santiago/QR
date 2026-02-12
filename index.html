@@ -3,62 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Estudiantes - Indaptados</title>
+    <title>Login - Indaptados</title>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-box { background: #1e293b; padding: 40px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; border: 1px solid #334155; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #6366f1; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #4f46e5; }
-        .error { color: #ef4444; font-size: 0.9em; display: none; margin-top: 10px; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+        .login-card { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 300px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        .error { color: red; font-size: 14px; display: none; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="login-box">
+    <div class="login-card">
         <h2>Bienvenido</h2>
-        <p style="color:#94a3b8; margin-bottom: 20px;">Ingresa con tu cuenta institucional</p>
-        
-        <input type="email" id="email" placeholder="correo@indaptados.edu">
+        <input type="text" id="usuario" placeholder="Usuario (Ej: Zeryux o Profe)">
         <input type="password" id="password" placeholder="Contraseña">
-        <button onclick="iniciarSesion()">Ingresar</button>
-        <p class="error" id="error-msg">Credenciales incorrectas</p>
+        <button onclick="login()">Ingresar</button>
+        <p id="errorMsg" class="error">Credenciales incorrectas</p>
     </div>
 
     <script>
-        const baseDeDatosUsuarios = [
-            { uid: "U001", nombre: "Zeryux Dev", email: "zeryux@indaptados.edu", pass: "1234", matricula: "IND-2026-01" },
-            { uid: "U002", nombre: "Ana García", email: "ana@indaptados.edu", pass: "1234", matricula: "IND-2026-02" },
-            { uid: "U003", nombre: "Luis Pérez", email: "admin@indaptados.edu", pass: "admin", matricula: "IND-2026-03" }
-        ];
-
-        function iniciarSesion() {
-            const email = document.getElementById('email').value;
+        function login() {
+            const user = document.getElementById('usuario').value;
             const pass = document.getElementById('password').value;
-            const errorMsg = document.getElementById('error-msg');
+            const errorMsg = document.getElementById('errorMsg');
 
-            const usuarioEncontrado = baseDeDatosUsuarios.find(u => u.email === email && u.pass === pass);
+            // BASE DE DATOS MOCK (Simulada)
+            const usuarios = {
+                'Zeryux': { pass: '123', rol: 'alumno', nombre: 'Zeryux Dev', matricula: 'IND-2026-01' },
+                'Ana': { pass: '123', rol: 'alumno', nombre: 'Ana Design', matricula: 'IND-2026-02' },
+                'Profe': { pass: 'admin', rol: 'profesor', nombre: 'Profesor X', matricula: 'DOC-001' }
+            };
 
-            if (usuarioEncontrado) {
-                if (usuarioEncontrado.email === "admin@indaptados.edu") {
-                    window.location.href = 'escaner.html';
-                    return;
+            if (usuarios[user] && usuarios[user].pass === pass) {
+                // Guardamos sesión
+                localStorage.setItem('sesion_activa', JSON.stringify(usuarios[user]));
+                
+                // [US-01] Redirección basada en Roles
+                if (usuarios[user].rol === 'profesor') {
+                    window.location.href = 'Escaner.html'; // El profe va a escanear
+                } else {
+                    window.location.href = 'Credencial.html'; // El alumno va a su QR
                 }
-                localStorage.setItem('sesion_activa', JSON.stringify(usuarioEncontrado));
-                window.location.href = 'credencial.html';
             } else {
                 errorMsg.style.display = 'block';
             }
         }
     </script>
-    <script>
-    // Registro del Service Worker para soporte Offline
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Modo Offline listo:', reg.scope))
-                .catch(err => console.log('Fallo SW:', err));
-        });
-    }
-</script>
 </body>
 </html>
