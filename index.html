@@ -3,69 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso Indaptados</title>
+    <title>Portal Académico | Indaptados</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-container { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        h2 { color: #333; margin-bottom: 1.5rem; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        button:hover { background: #0056b3; }
-        .error { color: red; font-size: 0.9rem; margin-top: 10px; display: none; }
-        .footer { margin-top: 20px; font-size: 0.8rem; color: #888; }
+        :root { --primary: #002f6c; --accent: #0056b3; --bg: #f4f6f9; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        
+        .login-card { 
+            background: white; padding: 3rem; border-radius: 12px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; border-top: 6px solid var(--primary);
+        }
+        
+        .logo-placeholder { font-size: 3rem; color: var(--primary); margin-bottom: 10px; }
+        h1 { color: var(--primary); font-size: 1.8rem; margin: 0; font-weight: 700; }
+        p { color: #6c757d; margin-bottom: 2rem; font-size: 0.95rem; margin-top: 5px; }
+        
+        .input-group { text-align: left; margin-bottom: 15px; }
+        label { font-size: 0.85rem; font-weight: 600; color: #495057; display: block; margin-bottom: 5px; }
+        input { 
+            width: 100%; padding: 12px; border: 1px solid #ced4da; 
+            border-radius: 6px; box-sizing: border-box; font-size: 16px; transition: 0.2s;
+            background: #fdfdfd;
+        }
+        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1); }
+        
+        button { 
+            width: 100%; padding: 14px; background: var(--primary); color: white; 
+            border: none; border-radius: 6px; font-size: 16px; font-weight: 600; 
+            cursor: pointer; transition: 0.2s; margin-top: 20px;
+        }
+        button:hover { background: var(--accent); transform: translateY(-1px); }
+        
+        .error { background: #ffebee; color: #c62828; padding: 12px; border-radius: 6px; font-size: 0.9rem; margin-top: 20px; display: none; border: 1px solid #ef9a9a; }
+        .footer { margin-top: 30px; font-size: 0.75rem; color: #adb5bd; }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <img src="https://cdn-icons-png.flaticon.com/512/3589/3589030.png" width="80" alt="Logo">
-        <h2>Bienvenido</h2>
+    <div class="login-card">
+        <div class="logo-placeholder">🏛️</div>
+        <h1>Indaptados</h1>
+        <p>Sistema de Gestión Escolar</p>
+        
         <form id="loginForm" onsubmit="event.preventDefault(); login();">
-            <input type="text" id="user" placeholder="Usuario" required>
-            <input type="password" id="pass" placeholder="Contraseña" required>
+            <div class="input-group">
+                <label>Usuario Institucional</label>
+                <input type="text" id="user" placeholder="Ej. Zeryux" required autocomplete="username">
+            </div>
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="password" id="pass" placeholder="••••••••" required autocomplete="current-password">
+            </div>
             <button type="submit">Iniciar Sesión</button>
-            <div id="msg" class="error">Credenciales incorrectas</div>
+            <div id="msg" class="error">Credenciales no válidas. Verifique sus datos.</div>
         </form>
-        <div class="footer">Sistema de Asistencia v1.0</div>
+        
+        <div class="footer">© 2026 Plataforma Educativa Segura v2.5</div>
     </div>
 
     <script>
-        // [US-01] Base de Datos de Usuarios (Simulación Backend)
+        // USUARIOS REGISTRADOS
         const DB_USUARIOS = [
-            { user: 'Zeryux@indaptados.edu.mx', pass: '1234', rol: 'alumno', uid: 'IND-001', nombre: 'Zeryux Dev' },
-            { user: 'Isai@indaptados.edu.mx', pass: '1234', rol: 'alumno', uid: 'IND-002', nombre: 'Isai Santiago' },
-            { user: 'Josue@indaptados.edu.mx', pass: '1234', rol: 'alumno', uid: 'IND-003', nombre: 'Josue Dev' },
-            { user: 'Adolfo@indaptados.edu.mx', pass: '1234', rol: 'alumno', uid: 'IND-004', nombre: 'Adolfo UX' },
-            { user: 'Profesorhernesto@indaptados.edu.mx', pass: 'admin', rol: 'profesor', uid: 'DOC-01', nombre: 'Profesor Titular' }
+            { user: 'Zeryux', pass: '123', rol: 'alumno', uid: 'IND-2026-001', nombre: 'Zeryux Dev' },
+            { user: 'Isai', pass: '123', rol: 'alumno', uid: 'IND-2026-002', nombre: 'Isai Santiago' },
+            { user: 'Josue', pass: '123', rol: 'alumno', uid: 'IND-2026-003', nombre: 'Josue Dev' },
+            { user: 'Adolfo', pass: '123', rol: 'alumno', uid: 'IND-2026-004', nombre: 'Adolfo UX' },
+            { user: 'Profe', pass: 'admin', rol: 'profesor', uid: 'DOC-01', nombre: 'Ing. Alejandro' }
         ];
 
         function login() {
             const u = document.getElementById('user').value;
             const p = document.getElementById('pass').value;
             
-            const usuarioEncontrado = DB_USUARIOS.find(d => d.user === u && d.pass === p);
+            const usuario = DB_USUARIOS.find(d => d.user === u && d.pass === p);
 
-            if (usuarioEncontrado) {
-                // Guardar sesión persistente [US-01]
-                localStorage.setItem('sesion', JSON.stringify(usuarioEncontrado));
+            if (usuario) {
+                // Guardamos con un nombre de clave NUEVO para evitar conflictos
+                localStorage.setItem('sesion_escolar_v2', JSON.stringify(usuario));
                 
-                // Redirección por Roles
-                if (usuarioEncontrado.rol === 'profesor') {
+                // Redirección
+                if (usuario.rol === 'profesor') {
                     window.location.href = 'Escaner.html';
                 } else {
                     window.location.href = 'Credencial.html';
                 }
             } else {
-                document.getElementById('msg').style.display = 'block';
+                const msg = document.getElementById('msg');
+                msg.style.display = 'block';
+                setTimeout(() => msg.style.display = 'none', 3000);
             }
         }
 
-        // Verificar si ya hay sesión al cargar
-        const sesionActiva = JSON.parse(localStorage.getItem('sesion'));
-        if(sesionActiva) {
-            window.location.href = sesionActiva.rol === 'profesor' ? 'Escaner.html' : 'Credencial.html';
-        }
+        // AUTO-LOGIN CORRECTO (Evita el bucle)
+        window.onload = () => {
+            const sesion = JSON.parse(localStorage.getItem('sesion_escolar_v2'));
+            // Solo redirigir si hay sesión Y estamos en index.html
+            if(sesion && sesion.uid) {
+                // Pequeña validación extra para asegurar que no acaba de cerrar sesión
+                window.location.href = sesion.rol === 'profesor' ? 'Escaner.html' : 'Credencial.html';
+            }
+        };
     </script>
 </body>
 </html>
-

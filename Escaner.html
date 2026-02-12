@@ -3,149 +3,276 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profesor Dashboard</title>
+    <title>Panel Docente | Indaptados</title>
     <script src="html5-qrcode.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #333; }
+        :root { --sidebar: #0f172a; --bg: #f1f5f9; --primary: #2563eb; --text: #1e293b; --white: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Área del Escáner */
-        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: black; }
+        /* SIDEBAR */
+        .sidebar { width: 250px; background: var(--sidebar); color: white; display: flex; flex-direction: column; padding: 20px; }
+        .logo { font-size: 1.5rem; font-weight: bold; margin-bottom: 40px; color: #60a5fa; display: flex; align-items: center; gap: 10px; }
+        .menu-item { padding: 12px; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: 0.2s; opacity: 0.7; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.1); opacity: 1; }
+        .spacer { flex-grow: 1; }
+        .btn-logout { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-logout:hover { background: #ef4444; color: white; }
+
+        /* MAIN CONTENT */
+        .main { flex-grow: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
         
-        /* Alertas [US-03] */
-        .alert { padding: 15px; margin: 10px 0; border-radius: 5px; text-align: center; display: none; font-weight: bold; }
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .top-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .class-selector { padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 1rem; min-width: 250px; background: #f8fafc; font-weight: 600; color: var(--text); }
+        .clock { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--primary); background: #eff6ff; padding: 5px 15px; border-radius: 20px; }
 
-        /* Tabla Dashboard [US-08] */
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background: #007bff; color: white; }
-        tr:nth-child(even) { background: #f9f9f9; }
+        .dashboard-grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: 100%; }
+        
+        /* ESCÁNER */
+        .scanner-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: black; flex-grow: 1; }
+        
+        /* TABLA */
+        .list-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; }
+        .table-container { overflow-y: auto; flex-grow: 1; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { position: sticky; top: 0; background: white; }
+        th { text-align: left; padding: 15px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 0.85rem; text-transform: uppercase; }
+        td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        tr:hover { background: #f8fafc; }
+        
+        /* ALERTAS TOAST */
+        .toast { position: fixed; bottom: 30px; right: 30px; padding: 15px 25px; background: white; border-left: 5px solid; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; z-index: 1000; font-weight: 600; animation: slideIn 0.3s ease-out; }
+        .toast-success { border-color: #10b981; color: #065f46; }
+        .toast-error { border-color: #ef4444; color: #7f1d1d; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
-        .btn-danger { background: #dc3545; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 5px; float: right; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Panel de Asistencia</h1>
-        
-        <div id="reader"></div>
-        <div id="statusMsg" class="alert"></div>
-
-        <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
-            <h3>Asistencias Registradas Hoy</h3>
-            <button class="btn-danger" onclick="limpiarLista()">🗑️ Nueva Sesión</button>
-        </div>
-
-        <table id="tablaAsistencias">
-            <thead>
-                <tr>
-                    <th>Hora</th>
-                    <th>ID Alumno</th>
-                    <th>Nombre</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody id="listaBody">
-                </tbody>
-        </table>
-        
-        <br>
-        <button onclick="window.location.href='index.html'" style="padding:10px;">Cerrar Sesión</button>
+    <div class="sidebar">
+        <div class="logo">🏫 Indaptados</div>
+        <div class="menu-item active">📸 Pase de Lista</div>
+        <div class="menu-item">📊 Reportes</div>
+        <div class="menu-item">⚙️ Configuración</div>
+        <div class="spacer"></div>
+        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
     </div>
 
+    <div class="main">
+        <div class="top-header">
+            <div>
+                <div style="font-size: 0.85rem; color: #64748b;">Clase Actual</div>
+                <select id="classSelector" class="class-selector" onchange="cambiarMateriaManual()">
+                    <option value="">Seleccionando...</option>
+                </select>
+            </div>
+            <div class="clock" id="reloj">00:00:00</div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="scanner-card">
+                <h3 style="margin-top:0;">Cámara</h3>
+                <div id="reader"></div>
+                <p style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin-top: 10px;">Enfoque el QR del estudiante</p>
+            </div>
+
+            <div class="list-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin:0;">Asistencias Registradas</h3>
+                    <span style="background: #e2e8f0; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;" id="countBadge">0 Alumnos</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Matrícula</th>
+                                <th>Nombre</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaCuerpo">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Notificación</div>
+
     <script>
-        // Validar Rol Profesor
-        const sesion = JSON.parse(localStorage.getItem('sesion'));
+        // 1. DATA: Horario Escolar Definido (7:00 a 1:10)
+        const MATERIAS = [
+            { id: 1, nombre: "Cálculo Diferencial", start: 700, end: 750 },
+            { id: 2, nombre: "Química Orgánica", start: 750, end: 840 },
+            { id: 3, nombre: "Programación Estructurada", start: 840, end: 930 },
+            { id: 4, nombre: "Base de Datos I", start: 930, end: 1020 },
+            { id: 5, nombre: "Inglés IV", start: 1020, end: 1110 },
+            { id: 6, nombre: "Redes de Datos", start: 1110, end: 1200 },
+            { id: 7, nombre: "Ética Profesional", start: 1200, end: 1250 }
+            // 12:50 - 13:10 Salida
+        ];
+
+        // 2. VERIFICACIÓN DE SESIÓN
+        const sesion = JSON.parse(localStorage.getItem('sesion_escolar_v2'));
         if (!sesion || sesion.rol !== 'profesor') window.location.href = 'index.html';
 
-        // [US-04] Persistencia: Cargar datos previos
-        let listaAsistencia = JSON.parse(localStorage.getItem('db_asistencia')) || [];
-        renderizarTabla();
+        // 3. ESTADO
+        let materiaActual = null;
+        // Usamos una clave GLOBAL para que el alumno pueda leerla en su celular
+        let dbGlobal = JSON.parse(localStorage.getItem('asistencias_global_db')) || [];
 
-        // Configuración Escáner [US-03]
-        const scanner = new Html5Qrcode("reader");
+        // Llenar Dropdown
+        const selector = document.getElementById('classSelector');
+        MATERIAS.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.nombre;
+            opt.innerText = `${m.nombre} (${formatTime(m.start)} - ${formatTime(m.end)})`;
+            selector.appendChild(opt);
+        });
+
+        // 4. LÓGICA DE TIEMPO Y AUTO-SELECCIÓN
+        function formatTime(num) {
+            // Convierte 750 a 07:50
+            const str = num.toString().padStart(4, '0');
+            return str.substring(0,2) + ":" + str.substring(2);
+        }
+
+        function updateClockAndClass() {
+            const now = new Date();
+            document.getElementById('reloj').innerText = now.toLocaleTimeString();
+            
+            const currentTime = (now.getHours() * 100) + now.getMinutes(); 
+
+            // Buscar qué materia toca AHORA
+            const claseToca = MATERIAS.find(m => currentTime >= m.start && currentTime < m.end);
+            
+            if (claseToca) {
+                if (materiaActual !== claseToca.nombre) {
+                    selector.value = claseToca.nombre;
+                    materiaActual = claseToca.nombre;
+                    renderTabla(); // Refrescar tabla para la nueva materia
+                    mostrarToast(`Clase iniciada: ${materiaActual}`, 'success');
+                }
+            } else {
+                // Fuera de horario o receso
+                if(!materiaActual && selector.value === "") {
+                    // Si no se ha seleccionado nada manual, dejar en blanco
+                }
+            }
+        }
+        setInterval(updateClockAndClass, 1000);
+        updateClockAndClass(); // Run once
+
+        function cambiarMateriaManual() {
+            materiaActual = selector.value;
+            renderTabla();
+        }
+
+        // 5. ESCÁNER
+        const html5QrCode = new Html5Qrcode("reader");
         
         function onScanSuccess(decodedText) {
+            if(!materiaActual) {
+                mostrarToast("⚠️ Seleccione una materia o espere el horario", "error");
+                return;
+            }
+
             try {
-                const data = JSON.parse(decodedText);
-                procesarRegistro(data);
+                const alumno = JSON.parse(decodedText);
+                procesarAsistencia(alumno);
             } catch (e) {
-                mostrarAlerta("QR Inválido o no pertenece al sistema", "error");
+                mostrarToast("QR no reconocido", "error");
             }
         }
 
-        function procesarRegistro(alumno) {
+        function procesarAsistencia(alumno) {
             const ahora = Date.now();
-
-            // 1. [US-07] Validación de Expiración (15 mins = 900,000 ms)
+            
+            // A. Validar Expiración (15 mins = 900,000 ms)
             if (ahora - alumno.ts > 900000) {
-                mostrarAlerta(`❌ El código de ${alumno.nombre} expiró hace ${(ahora - alumno.ts)/60000 | 0} min.`, "error");
+                mostrarToast(`❌ El código de ${alumno.nombre} expiró`, "error");
                 return;
             }
 
-            // 2. [US-05] Anti-Fraude (Duplicados)
-            const existe = listaAsistencia.find(r => r.uid === alumno.uid);
-            if (existe) {
-                mostrarAlerta(`⚠️ ${alumno.nombre} ya fue registrado a las ${existe.hora}`, "error");
+            const fechaHoy = new Date().toLocaleDateString();
+
+            // B. Validar Duplicado GLOBAL (Misma materia, mismo día)
+            const yaRegistrado = dbGlobal.find(r => 
+                r.uid === alumno.uid && 
+                r.materia === materiaActual && 
+                r.fecha === fechaHoy
+            );
+
+            if (yaRegistrado) {
+                mostrarToast(`⚠️ ${alumno.nombre} ya tiene asistencia`, "error");
                 return;
             }
 
-            // 3. Registro Exitoso
+            // C. REGISTRAR
             const nuevoRegistro = {
                 uid: alumno.uid,
                 nombre: alumno.nombre,
                 hora: new Date().toLocaleTimeString(),
-                estado: "A Tiempo"
+                fecha: fechaHoy,
+                materia: materiaActual,
+                estado: 'Presente'
             };
 
-            listaAsistencia.push(nuevoRegistro);
-            localStorage.setItem('db_asistencia', JSON.stringify(listaAsistencia)); // Guardar
+            dbGlobal.push(nuevoRegistro);
+            // Guardamos en la "Nube simulada" (LocalStorage compartido)
+            localStorage.setItem('asistencias_global_db', JSON.stringify(dbGlobal));
             
-            renderizarTabla();
-            mostrarAlerta(`✅ Asistencia correcta: ${alumno.nombre}`, "success");
+            renderTabla();
+            mostrarToast(`✅ ${alumno.nombre} registrado`, "success");
             
-            // Pausa para evitar doble lectura instantánea
-            scanner.pause();
-            setTimeout(() => scanner.resume(), 2500);
+            // Pausa para no leer doble
+            html5QrCode.pause();
+            setTimeout(() => html5QrCode.resume(), 2000);
         }
 
-        function renderizarTabla() {
-            const tbody = document.getElementById('listaBody');
-            tbody.innerHTML = "";
-            listaAsistencia.forEach(item => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${item.hora}</td>
-                        <td>${item.uid}</td>
-                        <td>${item.nombre}</td>
-                        <td style="color:green; font-weight:bold;">${item.estado}</td>
-                    </tr>
+        function renderTabla() {
+            const tbody = document.getElementById('listaCuerpo');
+            tbody.innerHTML = '';
+            
+            const fechaHoy = new Date().toLocaleDateString();
+            
+            // Filtramos SOLO los de la materia actual y día actual
+            const filtrados = dbGlobal.filter(r => r.materia === materiaActual && r.fecha === fechaHoy);
+            
+            // Actualizar contador
+            document.getElementById('countBadge').innerText = `${filtrados.length} Alumnos`;
+
+            // Llenar tabla (los más recientes arriba)
+            filtrados.reverse().forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family:monospace;">${r.hora}</td>
+                    <td>${r.uid}</td>
+                    <td>${r.nombre}</td>
+                    <td><span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:0.8rem; font-weight:bold;">${r.estado}</span></td>
                 `;
+                tbody.appendChild(tr);
             });
         }
 
-        function mostrarAlerta(msg, tipo) {
-            const div = document.getElementById('statusMsg');
-            div.innerText = msg;
-            div.className = `alert ${tipo}`;
-            div.style.display = 'block';
+        function mostrarToast(msg, tipo) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = `toast toast-${tipo}`;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
         }
 
-        function limpiarLista() {
-            if(confirm("¿Estás seguro de iniciar una nueva clase? Se borrará la lista actual.")) {
-                listaAsistencia = [];
-                localStorage.removeItem('db_asistencia');
-                renderizarTabla();
-                mostrarAlerta("Lista reiniciada", "success");
-            }
+        function logout() {
+            localStorage.removeItem('sesion_escolar_v2');
+            window.location.href = 'index.html';
         }
 
         // Iniciar Cámara
-        scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
     </script>
 </body>
 </html>

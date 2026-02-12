@@ -3,81 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Credencial</title>
+    <title>Credencial Digital</title>
+    <link rel="manifest" href="manifest.json">
     <script src="qrcode.min.js"></script>
     <style>
-        body { background: #2c3e50; font-family: sans-serif; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: white; color: #333; padding: 20px; border-radius: 15px; text-align: center; width: 300px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        h2 { margin: 0; color: #2c3e50; }
-        #qrcode { margin: 20px auto; display: flex; justify-content: center; }
-        .data { font-size: 1.2em; font-weight: bold; margin: 5px 0; }
-        .expiration { color: #e74c3c; font-size: 0.9em; margin-bottom: 15px; }
-        .btn { display: block; width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-down { background: #27ae60; color: white; }
-        .btn-out { background: #95a5a6; color: white; }
+        :root { --dark: #1e293b; --card: #ffffff; --text: #334155; --green: #10b981; --red: #ef4444; --gray: #94a3b8; --primary: #2563eb; }
+        body { background: #f1f5f9; color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        
+        .header-bar { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header-title { font-weight: 800; font-size: 1.2rem; color: var(--primary); }
+        
+        .card { 
+            background: var(--card); width: 100%; max-width: 380px; 
+            border-radius: 16px; padding: 25px; text-align: center; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px;
+            position: relative; overflow: hidden;
+        }
+
+        .card::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, var(--primary), #60a5fa);
+        }
+
+        /* QR y Datos */
+        #qrcode { padding: 10px; display: inline-block; margin: 15px 0; border: 1px solid #e2e8f0; border-radius: 8px; }
+        #qrcode img { display: block; }
+        
+        .student-name { font-size: 1.3rem; font-weight: 700; color: var(--dark); margin: 5px 0; }
+        .student-id { color: var(--gray); font-size: 0.95rem; font-family: monospace; letter-spacing: 1px; background: #f8fafc; padding: 4px 12px; border-radius: 20px; display: inline-block; }
+
+        /* TIMER VISUAL */
+        .timer-container { 
+            background: #fff1f2; color: var(--red); border: 1px solid #fecdd3;
+            margin: 15px 0; padding: 10px; border-radius: 8px; font-weight: 600;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .timer-icon { animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* HORARIO */
+        .schedule-title { text-align: left; font-weight: 700; color: var(--dark); margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .schedule-list { list-style: none; padding: 0; margin: 0; text-align: left; }
+        
+        .class-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 12px 0; border-bottom: 1px solid #f1f5f9; 
+        }
+        .class-item:last-child { border: none; }
+        
+        .time-col { font-size: 0.75rem; color: var(--gray); width: 80px; }
+        .info-col { flex-grow: 1; }
+        .subject { font-weight: 600; font-size: 0.95rem; color: var(--dark); }
+        .status-col { width: 30px; text-align: right; font-size: 1.2rem; }
+
+        /* Estados */
+        .status-verified { color: var(--green); }
+        .status-missed { color: var(--red); }
+        .status-pending { color: var(--gray); opacity: 0.3; }
+
+        button { width: 100%; padding: 14px; border-radius: 10px; border: none; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-down { background: var(--dark); color: white; }
+        .btn-logout { background: white; border: 1px solid #cbd5e1; color: var(--text); margin-top: 20px; }
+
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>Pase de Lista</h2>
-        <div id="qrcode"></div>
-        
-        <div class="data" id="nombreAlumno">Cargando...</div>
-        <div id="uidAlumno" style="color:gray">...</div>
-        
-        <div class="expiration">⏳ Válido por 15 minutos</div>
-
-        <button class="btn btn-down" onclick="descargarQR()">⬇️ Guardar en Galería</button>
-        <button class="btn btn-out" onclick="logout()">Cerrar Sesión</button>
+    <div class="header-bar">
+        <div class="header-title">Mi Portal</div>
+        <div style="font-size: 0.9rem; color: #64748b;" id="fechaHoy">...</div>
     </div>
 
+    <div class="card">
+        <div class="student-name" id="nombre">Cargando...</div>
+        <div class="student-id" id="matricula">...</div>
+
+        <div id="qrcode"></div>
+        
+        <div class="timer-container">
+            <span class="timer-icon">⏳</span>
+            <span>Válido por: <span id="countdown">15:00</span> min</span>
+        </div>
+
+        <button class="btn-down" onclick="descargar()">📥 Guardar en Galería</button>
+    </div>
+
+    <div class="card">
+        <div class="schedule-title">
+            <span>Horario de Hoy</span>
+            <span style="font-size:0.8rem; font-weight:400; color:#64748b;">7:00 - 13:10</span>
+        </div>
+        <ul class="schedule-list" id="scheduleList">
+            </ul>
+    </div>
+
+    <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+
     <script>
-        // 1. Validar Sesión (Seguridad)
-        const usuario = JSON.parse(localStorage.getItem('sesion'));
-        if (!usuario || usuario.rol !== 'alumno') window.location.href = 'index.html';
+        // 1. CONFIGURACIÓN DEL HORARIO (7 Clases de 50 min)
+        const HORARIO = [
+            { id: 1, inicio: 700, fin: 750, label: '07:00 - 07:50', materia: 'Cálculo Diferencial' },
+            { id: 2, inicio: 750, fin: 840, label: '07:50 - 08:40', materia: 'Química Orgánica' },
+            { id: 3, inicio: 840, fin: 930, label: '08:40 - 09:30', materia: 'Programación Estructurada' },
+            { id: 4, inicio: 930, fin: 1020, label: '09:30 - 10:20', materia: 'Base de Datos I' },
+            { id: 5, inicio: 1020, fin: 1110, label: '10:20 - 11:10', materia: 'Inglés IV' },
+            { id: 6, inicio: 1110, fin: 1200, label: '11:10 - 12:00', materia: 'Redes de Datos' },
+            { id: 7, inicio: 1200, fin: 1250, label: '12:00 - 12:50', materia: 'Ética Profesional' }
+            // 12:50 a 13:10 (Salida/Extra)
+        ];
 
-        document.getElementById('nombreAlumno').innerText = usuario.nombre;
-        document.getElementById('uidAlumno').innerText = usuario.uid;
+        // 2. SEGURIDAD DE SESIÓN
+        const sesion = JSON.parse(localStorage.getItem('sesion_escolar_v2'));
+        if (!sesion || sesion.rol !== 'alumno') window.location.href = 'index.html';
 
-        // 2. Generar QR con Timestamp [US-07]
-        const qrData = {
-            uid: usuario.uid,
-            nombre: usuario.nombre,
-            ts: Date.now() // Hora exacta para validación
-        };
+        document.getElementById('nombre').innerText = sesion.nombre;
+        document.getElementById('matricula').innerText = sesion.uid;
+        document.getElementById('fechaHoy').innerText = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' });
 
-        const qrContainer = document.getElementById("qrcode");
-        new QRCode(qrContainer, {
-            text: JSON.stringify(qrData),
-            width: 200,
-            height: 200,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
+        // 3. GENERAR QR + TIMER REAL
+        let timeLeft = 15 * 60; // 900 segundos
+        
+        function startTimer() {
+            const timerDisplay = document.getElementById('countdown');
+            const interval = setInterval(() => {
+                const minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                
+                timerDisplay.innerText = `${minutes}:${seconds}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    timerDisplay.innerText = "EXPIRADO";
+                    timerDisplay.parentElement.style.background = "#fee2e2";
+                    document.getElementById('qrcode').style.opacity = "0.2";
+                }
+                timeLeft--;
+            }, 1000);
+        }
+        startTimer();
+
+        // Generar QR
+        const datosQR = JSON.stringify({ 
+            uid: sesion.uid, 
+            nombre: sesion.nombre, 
+            ts: Date.now() 
         });
+        new QRCode(document.getElementById("qrcode"), { text: datosQR, width: 160, height: 160 });
 
-        // 3. Función Descarga Offline [US-06]
-        function descargarQR() {
-            const img = qrContainer.querySelector("img");
-            if (img && img.src) {
+        // 4. LÓGICA DE HORARIO Y ESTADO (Check visual)
+        function renderHorario() {
+            const container = document.getElementById('scheduleList');
+            const ahora = new Date();
+            const horaActual = (ahora.getHours() * 100) + ahora.getMinutes(); // Ej: 10:30 = 1030
+
+            // Obtenemos el registro global de asistencias (Simulado Backend)
+            const dbGlobal = JSON.parse(localStorage.getItem('asistencias_global_db')) || [];
+            const misAsistencias = dbGlobal.filter(r => r.uid === sesion.uid && r.fecha === new Date().toLocaleDateString());
+
+            let html = '';
+
+            HORARIO.forEach(clase => {
+                // Verificar si asistió
+                const asistio = misAsistencias.some(a => a.materia === clase.materia);
+                
+                let icon = '<span class="status-pending">🔒</span>'; // Por defecto: Futuro
+                let rowStyle = '';
+
+                if (asistio) {
+                    icon = '<span class="status-verified">✅</span>'; // Verificado
+                } else if (horaActual > clase.fin) {
+                    icon = '<span class="status-missed">❌</span>'; // Se pasó la hora y no hay registro
+                    rowStyle = 'opacity: 0.6;'; 
+                } else if (horaActual >= clase.inicio && horaActual < clase.fin) {
+                    icon = '<span class="status-pending" style="opacity:1; color:#f59e0b;">🕒</span>'; // Clase actual
+                    rowStyle = 'background: #f0f9ff; border-radius: 8px; padding-left:5px; padding-right:5px;';
+                }
+
+                html += `
+                    <li class="class-item" style="${rowStyle}">
+                        <div class="time-col">${clase.label}</div>
+                        <div class="info-col">
+                            <div class="subject">${clase.materia}</div>
+                        </div>
+                        <div class="status-col">${icon}</div>
+                    </li>
+                `;
+            });
+            container.innerHTML = html;
+        }
+        renderHorario();
+
+        // 5. FUNCIONES EXTRA
+        function descargar() {
+            const img = document.querySelector("#qrcode img");
+            if(img) {
                 const link = document.createElement("a");
                 link.href = img.src;
-                link.download = `QR_${usuario.uid}.png`;
-                document.body.appendChild(link);
+                link.download = `Credencial_${sesion.uid}.png`;
                 link.click();
-                document.body.removeChild(link);
             }
         }
 
         function logout() {
-            localStorage.removeItem('sesion');
+            // BORRADO TOTAL PARA EVITAR BUG DE REDIRECCIÓN
+            localStorage.removeItem('sesion_escolar_v2'); 
             window.location.href = 'index.html';
-        }
-
-        // 4. Registrar Service Worker (Modo Offline)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js');
         }
     </script>
 </body>
